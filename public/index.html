@@ -1,0 +1,312 @@
+<!-- ...IndexedDB Functionality...
+sources: https://github.com/hnasr/indexedDB/blob/master/index.html
+https://itnext.io/getting-started-with-persistent-offline-storage-with-indexeddb-1af66727246c
+Note: 'e' refers to event -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Meta -->
+  <title>PWA Dev</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Links -->
+  <link rel="stylesheet" type="text/css" href="styles.css" media="all">
+  <link rel="manifest" href="manifest.json">
+
+</head>
+
+<body>
+  <header>
+    <h2>Hi.</h2>
+  </header>
+
+  <section>
+    <nav>
+      <ul>
+        <li><a href="page_1.html">Page One</a></li>
+        <li><a href="page_2.html">Page Two</a></li>
+      </ul>
+    </nav>
+  
+    <article>
+      <h1 align="center">General JavaScript Functional Testing</h1>
+      
+      <h4>Click and Show</h4>
+      <button onclick = "pushFunction()">Click me</button>
+      <p id = "pushid"></p>
+      <br>
+      <h4>Testing Text Entry</h4>
+      Input: <input type = "text" id = "entryText" value = "Enter text">
+      <button onclick="textEntryFunction()">Click to change field value</button>
+      <p id="printText"></p>
+      <br>
+      <h4>Testing Multiple Data Entry</h4>
+      <h5>Item Store (itemStore) Table</h5>
+      <table>
+        <tr>
+          <th><input type = "text" id = "dataEntry1" value = "invoiceID"></th>
+          <th><input type = "text" id = "dataEntry2" value = "row"></th>
+        </tr>
+        <tr>
+          <th><input type = "text" id = "dataEntry3" value = "item"></th>
+          <th><input type = "text" id = "dataEntry4" value = "cost"></th>
+        </tr>
+      </table>
+      <button onclick="multiDataEntryFunction()">Click me</button>
+      <p id="multiDataJSON"></p>
+
+      <!-- Database Information and Functionality -->
+      <h1> IndexedDB Functional Testing</h1>
+      <br>
+      <table>
+        <tr>
+          <th><button id = 'btnNewInvoice'>Add Details</button></th>
+          <th><button id = 'btnUpdateInvoice'>Update Details</button></th>
+        </tr>
+        <tr>
+          <th><button id = 'btnDeleteInvoice'>Delete Details</button></th>
+          <th><button id = 'btnReadInvoice'>Read Details</button></th>
+        </tr>
+      </table>
+    </article>
+  </section>
+
+  <footer>
+    <p>Woodplc - 2019 - All rights reserved.</p>
+  </footer>
+
+
+  <!-- javaScript scripts -->
+  <script>
+    // Misc functions to test functionality of JS
+
+    // Button push/click, display...
+    function pushFunction() {
+      document.getElementById("pushid").innerHTML = "Result of click";
+    };
+
+    // Text entry, click, display...
+    function textEntryFunction() {
+      var enteredText = document.getElementById("entryText");
+      document.getElementById("printText").innerHTML = enteredText.value;
+    };
+
+    // Multi-field entry... to feed future data ingestion...
+    function multiDataEntryFunction() {
+
+      const myObj = {
+        invoiceID: document.getElementById("dataEntry1").value,
+        row: document.getElementById("dataEntry2").value,
+        item: document.getElementById("dataEntry3").value,
+        cost: Number(document.getElementById("dataEntry4").value)
+      };
+
+      const stringJSONinv = JSON.stringify(myObj);
+
+      document.getElementById("multiDataJSON").innerHTML = stringJSONinv;
+    };
+
+  </script>
+
+  <!-- Initialisation of IDB -->
+  <script type="text/javascript">
+    const dbName = "offlineDB";
+    const dbVersion = 1;
+
+    const request = window.indexedDB.open(dbName, dbVersion);
+
+    // on upgrade needed
+    request.onupgradeneeded = e => {
+        const db = e.target.result;
+        
+        const invoiceStore = db.createObjectStore("invoices", {keyPath: "invoiceId"});
+        invoiceStore.createIndex("VendorIndex", "vendor");
+
+        const itemStore = db.createObjectStore("invoice-items", {keyPath: ["invoiceId", "row"]});
+        itemStore.createIndex("InvoiceIndex", "invoiceId");
+
+        const fileStore = db.createObjectStore("attachments", { autoIncrement: true});
+        fileStore.createIndex("InvoiceIndex", "invoiceId");
+
+        console.log(`Created DB! Database Name & Version is - ${db.name} (${db.version})`)
+        alert(`Created DB! Database Name & Version is - ${db.name} (${db.version})`)
+    };
+
+    // TODO: IMPLEMENT ON ERROR FUNCTIONALITY
+    request.onerror = e => {
+        console.log(`Error! - ${e.target.error}`)
+        alert(`Error! - ${e.target.error}`)
+    };
+
+
+  // IDB CRUD - Create, Read, Updated & Delete Functionality
+
+    // Creating events for triggering
+    const btnNewInvoice = document.getElementById("btnNewInvoice");
+    btnNewInvoice.addEventListener("click", createNewInvoice);
+    
+    const btnUpdateInvoice = document.getElementById("btnUpdateInvoice");
+    btnUpdateInvoice.addEventListener("click", updateInvoice);
+    
+    const btnDeleteInvoice = document.getElementById("btnDeleteInvoice");
+    btnDeleteInvoice.addEventListener("click", deleteInvoice);
+
+    const btnReadInvoice = document.getElementById('btnReadInvoice');
+    btnReadInvoice.addEventListener("click", readInvoice);
+
+    function createNewInvoice() {
+      console.log('Creating new Invoice')
+      alert('Creating new Invoice')
+      const request = window.indexedDB.open(dbName, dbVersion);
+      request.onsuccess = e => {
+          const db = request.result;
+          const transaction = db.transaction(
+              [ "invoices", "invoice-items" ], "readwrite"
+          );
+          const invStore = transaction.objectStore("invoices");
+          const itemStore = transaction.objectStore("invoice-items");
+          const invIndex = invStore.index("VendorIndex");
+        
+          // Add data
+          invStore.add(
+              { invoiceId: "123", vendor: "Whirlpool", paid: false }
+          );
+          itemStore.add({
+              invoiceId: "123",
+              row: "1",
+              item: "Dish washer",
+              cost: 1400
+          });
+          itemStore.add({
+              invoiceId: "123",
+              row: "2",
+              item: "Labor",
+              cost: 500
+          });
+          // itemStore.add({
+          //   invoiceID: "123",
+          //   row: document.getElementById("dataEntry2").value,
+          //   item: document.getElementById("dataEntry3").value,
+          //   cost: Number(document.getElementById("dataEntry4").value)
+          //   });
+
+          console.log("Added Information to Database");
+          alert("Added Information to Database")
+
+          // Clean up: close connection
+          transaction.oncomplete = e => {
+              db.close();
+              
+          };
+      };
+    };
+    
+    function readInvoice() {
+      // open database, initiate transaction...
+      console.log("Reading item specified by key");
+      alert("Reading item specified by key")
+      const request = window.indexedDB.open(dbName, dbVersion);
+      request.onsuccess = e => {
+        const db = request.result;
+        const transaction = db.transaction(
+            [ "invoices", "invoice-items" ],
+            "readwrite"
+        );
+        const invStore = transaction.objectStore("invoices");
+        const itemStore = transaction.objectStore("invoice-items");
+        const invIndex = invStore.index("VendorIndex");
+        
+
+        // Gettig item by key:
+        const getRequest = invStore.get("123");
+        getRequest.onsuccess = e => {
+          console.log(getRequest.result);
+          alert(getRequest.result.value);
+        };
+
+        const getRequestIdx = invIndex.getAll("Whirlpool");
+        getRequestIdx.onsuccess = e => {
+          console.log(getRequestIdx.result);
+          alert(getRequestIdx.result.value);
+        };
+
+        console.log("Read From Database Successful")
+        alert("Read From Database Successful")
+
+        // Clean up: close connection
+        transaction.oncomplete = e => {
+          db.close();
+        };
+      };
+    };
+
+    function updateInvoice() {
+      // Open database, initiate transaction...
+      console.log("Updating invoice information");
+      alert("Updating invoice information")
+      const request = window.indexedDB.open(dbName, dbVersion);
+      request.onsuccess = e => {
+        const db = request.result;
+        const transaction = db.transaction(
+            [ "invoices", "invoice-items" ],
+            "readwrite"
+        );
+        const invStore = transaction.objectStore("invoices");
+        const itemStore = transaction.objectStore("invoice-items");
+        const invIndex = invStore.index("VendorIndex");
+
+        itemStore.put({invoiceId: "123", row: "1", item: "Dish washer", cost: 1300});
+
+        console.log("Updated Information within Database")
+        alert("Updated Information within Database")
+        // Clean up: close connection
+        transaction.oncomplete = e => {
+          db.close();
+        };
+      };
+    };
+
+    function deleteInvoice() {
+      // open database, initiate transaction...
+      console.log("Deleting invoice information");
+      alert("Deleting invoice information");
+      const request = window.indexedDB.open(dbName, dbVersion);
+      request.onsuccess = e => {
+        const db = request.result;
+        const transaction = db.transaction(
+            [ "invoices", "invoice-items" ],
+            "readwrite"
+        );
+        const invStore = transaction.objectStore("invoices");
+        const itemStore = transaction.objectStore("invoice-items");
+        const invIndex = invStore.index("VendorIndex");
+
+        itemStore.delete(["123", "2"]);
+
+        console.log("Deleted Information within Database");
+        alert("Deleted Information within Database")
+
+        // Clean up: close connection
+        transaction.oncomplete = e => {
+          db.close();
+        };
+      };
+    };
+
+  </script>
+
+  <script>
+    // Service Worker Functions
+    if('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+      .then(function() {
+        console.log('Service Worker Registered');
+        alert("Service Worker Registered Successfully")
+      });
+    }
+  </script>
+
+</body>
+</html>
